@@ -18,6 +18,7 @@ import threading
 import time
 
 import cv2
+from PIL import Image, ImageDraw, ImageFont
 import mujoco
 import numpy as np
 
@@ -202,8 +203,11 @@ class Agent:
         self.last_plan = -1
         self.events = []          # (t, text) spoken to the user
         self._said = {}
+        self.cut = {}             # event index -> time it was interrupted
+        self.pending, self.speaking_until = None, -1.0
         self.cost_ms = 0.0
         self.prior_wide = cv2.dilate(self.prior, np.ones((3, 3), np.uint8)) > 0
+        self.drop_possible = ~self.prior_wide   # floor can't be missing inside or behind a known wall
         self.tracks, self.next_id = [], 0
         self.pred = np.zeros((GW, GH), bool)
         self.ghosts = []
@@ -261,6 +265,7 @@ class Agent:
             d = np.load(path)
             self.memory = dict(obst=d["obst"], drop=d["drop"])
             self.journey = int(d["journeys"]) + 1
+            self.memory["drop"] &= self.drop_possible
             self.seen_drop |= self.memory["drop"]          # known hazards are planned around from the start
 
     def save_memory(self, path):
@@ -287,6 +292,20 @@ class Agent:
             self.say(t, f"Something new on this route since last time, {d:.0f} metres ahead on your {side}.", 1)
             self.reported_new |= cv2.dilate(new.astype(np.uint8), disk(1.0)) > 0
 
+    def drop_near_route(self, rx, ry, ahead=6.0, clear=1.8):
+        near = cv2.dilate(self.seen_drop.astype(np.uint8), disk(clear)) > 0
+        if near[cell(rx, ry)]:
+            return True
+        d, px, py = 0.0, rx, ry
+        for q in self.path or []:
+            d += math.hypot(q[0] - px, q[1] - py)
+            px, py = q
+            if d > ahead:
+                break
+            if near[cell(*q)]:
+                return True
+        return False
+
     def hazard_on_heading(self, rx, ry, heading, horizon=1.6):
         """Would walking this way run into a drop, an obstacle or a predicted person soon?"""
         blocked_drop = cv2.dilate(self.seen_drop.astype(np.uint8), disk(.6)) > 0
@@ -301,15 +320,57 @@ class Agent:
                 return "person"
         return None
 
+    # One voice, like a person: a line is never spoken over another one.
+    # Safety lines cut in straight away; anything else waits for the current
+    # line to finish, and is dropped if it would be stale by then.
+    SAFETY = ("Stop", "Open drop", "Handle released", "I can't", "Careful")
+    IMPORTANT = ("We're at", "Wait", "Someone's right next", "You know", "I'll take", "Something new", "Same route", "Back to you")
+
+    @staticmethod
+    def speech_time(text):
+        """Seconds Samantha takes at 185 wpm (fitted to measured `say` output)."""
+        return .3 + .053 * len(text) + .25 * text.count(". ")
+
     def say(self, t, text, cooldown=5.0):
-        urgent = text.startswith(("Stop", "Open drop", "We're at", "Handle", "Careful", "Wait", "You know", "I'll take", "Something new", "Same route", "Back to you"))
-        if not urgent and not getattr(self, "verbose", True) and text in ("People crossing ahead. Adjusting our route.",):
+        if t - self._said.get(text, -99) <= cooldown:
             return
-        if not urgent and self.events and t - self.events[-1][0] < 1.6:
+        if text.startswith(self.SAFETY):
+            if t < self.speaking_until:
+                if self.events[-1][1].startswith(self.SAFETY):
+                    self._queue(t, text, 3, 2.0)        # never cut one warning with another
+                    return
+                self.cut[len(self.events) - 1] = t      # interrupt the chatter
+            self._speak(t, text)
             return
-        if t - self._said.get(text, -99) > cooldown:
-            self._said[text] = t
-            self.events.append((t, text))
+        important = text.startswith(self.IMPORTANT)
+        if not important and not getattr(self, "verbose", True) and text in ("People crossing ahead. Adjusting our route.",):
+            return
+        if t >= self.speaking_until + self.GAP and not self.pending:
+            self._speak(t, text)
+        else:
+            self._queue(t, text, 2 if important else 1, 6.0 if important else 2.0)
+
+    GAP = .4
+
+    def _queue(self, t, text, prio, ttl):
+        if self.pending and self.pending[2] > prio:
+            return
+        if self.pending and self.pending[1] == text:
+            return
+        self.pending = (t + ttl, text, prio)
+
+    def _speak(self, t, text):
+        self._said[text] = t
+        self.events.append((t, text))
+        self.speaking_until = t + self.speech_time(text)
+
+    def flush_speech(self, t):
+        if self.pending and t > self.pending[0]:
+            self.pending = None                         # too late to still be true
+        if self.pending and t >= self.speaking_until + self.GAP:
+            text = self.pending[1]
+            self.pending = None
+            self._speak(t, text)
 
     def track_people(self, t, pts):
         """Group obstacle points into blobs, follow each blob over time, estimate its velocity."""
@@ -407,6 +468,7 @@ class Agent:
                 g[np.clip((xy[:, 0] / RES).astype(int), 0, GW - 1), np.clip((xy[:, 1] / RES).astype(int), 0, GH - 1)] = True
             return g
         om, fm, dm = grid(p["obst"]), grid(p["floor"]), grid(p["drop"])
+        dm &= self.drop_possible      # rays that pass over a boundary wall are not drops
         if excl is not None:
             om &= ~excl
         newm = om & ~self.prior.astype(bool) & ~self.seen_obst
@@ -465,6 +527,7 @@ class Agent:
 
     def step(self, t, rx, ry, yaw, p, grip, tension=0.0, user_heading=None):
         t0 = time.perf_counter()
+        self.flush_speech(t)
         excl = self.track_people(t, p["obst"])
         new_obst, new_drop = self.update_map(p, excl)
         self.predict(rx, ry)
@@ -574,6 +637,10 @@ class Agent:
             self.calm_since = (self.calm_since if self.calm_since is not None else t) if tension < .35 else None
             familiar = self.journey >= 2
             safe_to_hand_back = user_heading is None or self.hazard_on_heading(rx, ry, user_heading, 2.2) is None
+            # like a sighted guide: don't hand over while a known drop is beside you
+            # or on the next few metres of the route; once it's behind you, hand over
+            if self.drop_near_route(rx, ry):
+                safe_to_hand_back = False
             if self.mode == "LEAD" and familiar and safe_to_hand_back and self.calm_since is not None and t - self.calm_since > 2 and t - self.mode_since > 3:
                 self.mode, self.mode_since = "SHADOW", t
                 first = not getattr(self, "_shadowed", False)
@@ -751,9 +818,30 @@ def overlay_cam(rgb, label):
     return out.astype(np.uint8)
 
 
-def text(img, s, xy, scale=.5, col=(240, 240, 240), th=1):
-    cv2.putText(img, s, xy, cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), th + 2, cv2.LINE_AA)
-    cv2.putText(img, s, xy, cv2.FONT_HERSHEY_SIMPLEX, scale, col, th, cv2.LINE_AA)
+FONT_FILE = "/System/Library/Fonts/Helvetica.ttc"
+_fonts = {}
+
+
+def font(size, bold=False):
+    if (size, bold) not in _fonts:
+        _fonts[size, bold] = ImageFont.truetype(FONT_FILE, size, index=1 if bold else 0)
+    return _fonts[size, bold]
+
+
+def shade(img, x0, y0, x1, y1, a=.7, col=(22, 23, 28)):
+    """Darken a box so text on top of the 3D view stays readable."""
+    img[y0:y1, x0:x1] = (img[y0:y1, x0:x1] * (1 - a) + np.array(col) * a).astype(np.uint8)
+
+
+def wrap_text(s, f, width):
+    lines, cur = [], ""
+    for w in s.split():
+        if f.getlength((cur + " " + w).strip()) <= width:
+            cur = (cur + " " + w).strip()
+        else:
+            lines.append(cur)
+            cur = w
+    return lines + [cur] if cur else lines
 
 
 STATE_COL = {"GUIDING": (90, 200, 90), "SAFETY STOP": (40, 120, 255), "WAITING": (0, 200, 255), "YIELDING": (255, 170, 120), "SHADOWING": (230, 200, 90), "STEPPING IN": (40, 120, 255),
@@ -822,20 +910,23 @@ def main():
     user_t = UserTension(rng)
     sign_on = False
     if agent.journey >= 2:
-        agent.say(0.0, f"Same route as last time, journey {agent.journey}. The open hatch is still about {max(0, HATCH[0] - START[0]):.0f} metres ahead; I'll keep you clear of it.")
+        agent.say(0.0, f"Same route as last time. The open hatch is {max(0, HATCH[0] - START[0]):.0f} metres ahead.")
     else:
         agent.say(0.0, "Starting. Heading to the lifts, about 17 metres.")
 
     os.makedirs("runs", exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    silent = f"runs/wayfinder-{stamp}-seed{seed}-silent.mp4"
-    vw = None if args.headless else cv2.VideoWriter(silent, cv2.VideoWriter_fourcc(*"mp4v"), FPS, (1280, 720))
+    silent = f"runs/wayfinder-{stamp}-seed{seed}-silent.avi"
+    vw = None if args.headless else cv2.VideoWriter(silent, cv2.VideoWriter_fourcc(*"MJPG"), FPS, (1280, 720))
+    if vw is not None:
+        vw.set(cv2.VIDEOWRITER_PROP_QUALITY, 100)
     m = dict(min_person=99.0, min_drop=99.0, contacts=0, stops=0)
     def rect_dist(x, y, r):
         dx = max(r[0] - x, 0, x - r[1]); dy = max(r[2] - y, 0, y - r[3])
         return math.hypot(dx, dy)
     was_stopped = False
     arrived_t = None
+    live_n, live_proc = 0, None   # live window: speak through the speakers as it happens
     t = 0.0
     while t < args.tmax:
         tick = time.time()
@@ -892,6 +983,12 @@ def main():
         tgt_ = up[min(k_ + 4, len(up) - 1)]
         user_heading = math.atan2(tgt_[1] - ry, tgt_[0] - rx) + rng.normal(0, .05)
         v, w = agent.step(t, rx, ry, yaw, p, grip, tension, user_heading)
+        if args.show and not args.no_audio:
+            while live_n < len(agent.events):
+                if live_proc is not None and live_proc.poll() is None:
+                    live_proc.terminate()   # only when a safety line cuts in
+                live_proc = subprocess.Popen(["say", "-v", "Samantha", "-r", "185", agent.events[live_n][1]])
+                live_n += 1
         agent._last_v = v
         for pose in crowd.poses():
             if pose is not None:
@@ -927,35 +1024,77 @@ def main():
         main_r.update_scene(data, camera=vcam)
         frame = np.zeros((720, 1280, 3), np.uint8)
         frame[:, :960] = cv2.cvtColor(main_r.render(), cv2.COLOR_RGB2BGR)
+        # right column, top to bottom: header, camera, legend, header, map, status
+        X, W = 960, 320
+        frame[:, X:] = (28, 23, 22)
         small_r.update_scene(data, camera="front")
-        frame[:240, 960:] = cv2.cvtColor(overlay_cam(small_r.render(), p["label"]), cv2.COLOR_RGB2BGR)
-        frame[240:440, 960:] = draw_map(agent, rx, ry, yaw, ux, uy)
-        panel = frame[440:, 960:]
-        panel[:] = (28, 28, 32)
-        text(frame, "ROBOT CAMERA: what it perceives", (968, 18), .42)
-        text(frame, "floor  obstacle  drop", (968, 232), .38, (230, 230, 230))
-        text(frame, "MAP: known / learned / planned route", (968, 258), .42)
-        sc = STATE_COL.get(agent.state, (240, 240, 240))
-        text(frame, agent.state, (972, 478), .8, sc, 2)
-        text(frame, agent.reason[:38], (972, 506), .42)
-        mode_txt = "LEAD: it guides" if agent.mode == "LEAD" else "SHADOW: you lead"
-        text(frame, f"{mode_txt}  |  journey {agent.journey}", (972, 456), .4, (230, 200, 90) if agent.mode == "SHADOW" else (200, 200, 200))
-        text(frame, f"speed {v:.2f} m/s   grip {'held' if grip else 'RELEASED'}", (972, 536), .42)
-        bar_w = int(150 * tension)
-        cv2.rectangle(frame, (1110, 690), (1260, 704), (70, 70, 80), -1)
-        cv2.rectangle(frame, (1110, 690), (1110 + bar_w, 704), (90, 200, 90) if tension < .45 else (0, 170, 255) if tension < .6 else (60, 60, 230), -1)
-        text(frame, "user tension (handle)", (972, 702), .42)
-        text(frame, f"decide: {agent.cost_ms:.1f} ms/cycle on CPU", (972, 562), .42)
-        text(frame, f"tracking {len(agent.moving())} moving people, {HORIZON:.0f} s ahead", (972, 586), .42, (180, 180, 180))
-        text(frame, f"run seed {seed}  t={t:4.1f}s", (972, 612), .42, (180, 180, 180))
-        text(frame, "crowd + events random each run, all on-device", (972, 636), .42, (180, 180, 180))
+        frame[28:268, X:] = cv2.cvtColor(overlay_cam(small_r.render(), p["label"]), cv2.COLOR_RGB2BGR)
+        frame[324:524, X:] = draw_map(agent, rx, ry, yaw, ux, uy)
+        frame[:, X:X + 1] = (70, 60, 55)
         recent = [e for e in agent.events if t - e[0] < 3.5]
-        if recent:
-            msg = '"' + recent[-1][1] + '"'
-            (tw, th), _ = cv2.getTextSize(msg, cv2.FONT_HERSHEY_SIMPLEX, .8, 2)
-            cv2.rectangle(frame, (480 - tw // 2 - 14, 650), (480 + tw // 2 + 14, 694), (20, 20, 24), -1)
-            text(frame, msg, (480 - tw // 2, 682), .8, (255, 255, 255), 2)
-        text(frame, "WAYFINDER  |  robot guide, simulated", (16, 32), .7, (255, 255, 255), 2)
+        cap_f = font(24, True)
+        cap = wrap_text('"' + recent[-1][1] + '"', cap_f, 860) if recent else []
+        if cap:
+            cw = int(max(cap_f.getlength(c) for c in cap))
+            shade(frame, 480 - cw // 2 - 18, 700 - 34 * len(cap) - 16, 480 + cw // 2 + 18, 700, .82)
+        shade(frame, 0, 0, 960, 64, .62)
+
+        im = Image.fromarray(frame[..., ::-1].copy())
+        d = ImageDraw.Draw(im)
+        WHITE, GREY, DIM = (240, 240, 236), (175, 178, 186), (120, 124, 134)
+        # main view
+        d.text((18, 12), "WAYFINDER", font=font(24, True), fill=(255, 198, 26))
+        d.text((18, 40), f"Station concourse to the lifts   ·   journey {agent.journey} on this route   ·   MuJoCo simulation", font=font(14), fill=GREY)
+        d.text((942, 16), f"seed {seed}   t = {t:4.1f} s", font=font(14), fill=GREY, anchor="ra")
+        d.text((942, 38), "random crowd each run  ·  all on-device", font=font(13), fill=DIM, anchor="ra")
+        for k, c in enumerate(cap):
+            d.text((480, 700 - 16 - 34 * (len(cap) - 1 - k)), c, font=cap_f, fill=WHITE, anchor="ms")
+        # camera
+        d.text((X + 12, 8), "ROBOT CAMERA", font=font(13, True), fill=WHITE)
+        d.text((X + W - 12, 9), "what it perceives", font=font(12), fill=GREY, anchor="ra")
+        lx = X + 12
+        for name, col in [("floor", (60, 200, 90)), ("obstacle", (230, 50, 50)), ("drop", (255, 150, 0))]:
+            d.rectangle((lx, 281, lx + 10, 291), fill=col)
+            d.text((lx + 16, 280), name, font=font(12), fill=GREY)
+            lx += 16 + int(font(12).getlength(name)) + 22
+        # map
+        d.text((X + 12, 304), "MAP", font=font(13, True), fill=WHITE)
+        lx = X + 52
+        for name, col, shape in [("route", (0, 160, 200), "line"), ("you", (50, 160, 170), "dot"),
+                                 ("robot", (255, 190, 20), "tri"), ("person", (190, 90, 160), "dot")]:
+            if shape == "line":
+                d.line((lx, 312, lx + 14, 312), fill=col, width=3)
+                tx = lx + 19
+            elif shape == "dot":
+                d.ellipse((lx, 307, lx + 10, 317), fill=col)
+                tx = lx + 15
+            else:
+                d.polygon([(lx, 317), (lx + 11, 312), (lx, 307)], fill=col)
+                tx = lx + 16
+            d.text((tx, 305), name, font=font(12), fill=GREY)
+            tx += int(font(12).getlength(name)) + 14
+            lx = tx
+        # status
+        y = 538
+        shadow = agent.mode == "SHADOW"
+        d.text((X + 12, y), "SHADOW · you lead" if shadow else "LEAD · it guides", font=font(13, True),
+               fill=(255, 205, 90) if shadow else GREY)
+        d.text((X + W - 12, y + 1), f"journey {agent.journey}", font=font(12), fill=DIM, anchor="ra")
+        sc = STATE_COL.get(agent.state, (240, 240, 240))
+        d.text((X + 12, y + 20), agent.state, font=font(26, True), fill=(sc[2], sc[1], sc[0]))
+        for k, ln in enumerate(wrap_text(agent.reason, font(14), W - 24)[:2]):
+            d.text((X + 12, y + 54 + 18 * k), ln, font=font(14), fill=WHITE)
+        d.text((X + 12, y + 98), f"{v:.2f} m/s   ·   grip {'held' if grip else 'RELEASED'}", font=font(13), fill=GREY)
+        n = len(agent.moving())
+        d.text((X + 12, y + 117), f"{n} moving {'person' if n == 1 else 'people'}, predicted {HORIZON:.0f} s ahead",
+               font=font(13), fill=GREY)
+        d.text((X + 12, y + 136), f"decision {agent.cost_ms:.1f} ms on one CPU core", font=font(13), fill=DIM)
+        d.text((X + 12, y + 159), "user tension (handle)", font=font(13), fill=GREY)
+        bx = X + 150
+        tcol = (90, 200, 90) if tension < .45 else (255, 170, 0) if tension < .6 else (230, 60, 60)
+        d.rounded_rectangle((bx, y + 160, X + W - 12, y + 172), 6, fill=(60, 62, 70))
+        d.rounded_rectangle((bx, y + 160, bx + max(12, int((X + W - 12 - bx) * tension)), y + 172), 6, fill=tcol)
+        frame = np.ascontiguousarray(np.array(im)[..., ::-1])
         vw.write(frame)
         if args.show:
             cv2.imshow("Wayfinder", frame)
@@ -973,35 +1112,44 @@ def main():
         print(json.dumps(dict(seed=seed, arrived=agent.state == "ARRIVED", time=round(t, 1),
                               min_person=round(m["min_person"], 2), min_drop=round(m["min_drop"], 2),
                               contacts=m["contacts"], robot_fault=m.get("robot_fault", 0), stops=m["stops"],
-                              journey=agent.journey, interventions=agent.interventions)))
+                              journey=agent.journey, interventions=agent.interventions,
+                              said=[(round(a, 1), b) for a, b in agent.events])))
         return
     vw.release()
     if args.show:
         cv2.destroyAllWindows()
 
-    out = silent.replace("-silent", "")
+    out = silent.replace("-silent.avi", ".mp4")
     if args.no_audio or not agent.events:
-        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", silent, "-c:v", "libx264", "-pix_fmt", "yuv420p", out])
+        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", silent, "-c:v", "libx264", "-crf", "15", "-preset", "slow", "-pix_fmt", "yuv420p", out])
     else:
         clips, filt, inputs = [], [], ["-i", silent]
+        import wave
         for k, (et, msg) in enumerate(agent.events):
-            f = f"runs/_say{k}.aiff"
-            subprocess.run(["say", "-v", "Samantha", "-r", "185", "-o", f, msg])
+            f = f"runs/_say-{stamp}-{seed}-{k}.wav"
+            subprocess.run(["say", "-v", "Samantha", "-r", "185", "-o", f, "--data-format=LEI16@22050", msg])
+            with wave.open(f) as w:
+                dur = w.getnframes() / w.getframerate()
+            if k in agent.cut:
+                dur = min(dur, agent.cut[k] - et)
+            if k + 1 < len(agent.events) and et + dur > agent.events[k + 1][0] + .01:
+                print(f"  WARNING overlap: '{msg}' runs {et + dur - agent.events[k + 1][0]:.2f}s into the next line")
             clips.append(f)
             inputs += ["-i", f]
             ms = int(et * 1000)
-            filt.append(f"[{k + 1}:a]adelay={ms}|{ms}[a{k}]")
+            fade = f",afade=t=out:st={max(0, dur - .08):.3f}:d=0.08" if k in agent.cut else ""
+            filt.append(f"[{k + 1}:a]atrim=0:{dur:.3f}{fade},adelay={ms}|{ms}[a{k}]")
         mix = "".join(f"[a{k}]" for k in range(len(clips)))
         filt.append(f"{mix}amix=inputs={len(clips)}:normalize=0[a]")
         subprocess.run(["ffmpeg", "-loglevel", "error", "-y", *inputs, "-filter_complex", ";".join(filt),
-                        "-map", "0:v", "-map", "[a]", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+                        "-map", "0:v", "-map", "[a]", "-c:v", "libx264", "-crf", "15", "-preset", "slow", "-pix_fmt", "yuv420p", "-c:a", "aac",
                         "-shortest", out])
         for f in clips:
             os.remove(f)
     os.remove(silent)
     print(f"seed {seed}  duration {t:.1f}s  arrived={agent.state == 'ARRIVED'}  decide={agent.cost_ms:.1f} ms")
-    for et, msg in agent.events:
-        print(f"  {et:5.1f}s  {msg}")
+    for k, (et, msg) in enumerate(agent.events):
+        print(f"  {et:5.1f}s  {msg}" + (f"   [cut at {agent.cut[k]:.1f}s by a safety line]" if k in agent.cut else ""))
     print(out)
 
 

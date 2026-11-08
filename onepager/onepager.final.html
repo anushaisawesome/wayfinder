@@ -53,7 +53,7 @@ b { font-weight: 700 }
 <b>Track and predict:</b> socially aware navigation. Moving blobs are tracked; constant-velocity trajectory prediction 2 s ahead (a strong baseline [7]; the user-tested CaBot system used 4 s [8]), with uncertainty growing over time and with how erratic each person is; avoiding the "freezing robot problem" [9].<br>
 <b>Plan:</b> A* with safety margins (50 cm obstacles, 85 cm drops, predicted people), re-planned 2–4× a second; switching sides costs extra.<br>
 <b>Decide:</b> lead/shadow policy from familiarity + user tension; independent safety layer can always override.<br>
-<b>Act and speak:</b> steering plus on-device speech.</p>
+<b>Act and speak:</b> steering plus on-device speech, one line at a time like a person; only safety warnings cut in.</p>
 </div>
 
 <div class="box"><h2>Where it runs, and how fast</h2>
@@ -65,8 +65,8 @@ b { font-weight: 700 }
 <tr><td>Speech</td><td>on-device TTS</td><td class="num">no network</td></tr>
 </table>
 <p><b>Stated budget:</b> one CPU core, a 40 ms control cycle (25 Hz), no GPU, no network. Measured on a laptop CPU: typical decision step under 1 ms, worst-case re-plan about 13 ms (a third of the budget); the whole simulation including camera rendering runs about 5× faster than real time.</p>
-<h2 style="margin-top:6px">Evidence (random crowds and events)</h2><p>Prediction horizon tested on the same 20 random crowds: 2 s gave 0 contacts vs 1 with no prediction; 4 s was equally safe but stopped 25% more often, so we use 2 s.</p>
-<p>Journey 1 (new route), 40 random runs: 39 arrived (1 timed out in a dense crowd), 0 times the robot moved into anyone, never closer than 0.52 m to a person or 0.78 m to the drop. Journey 2 (remembered route, user leading when calm), 40 runs: 39 arrived, 0 robot-caused contacts, median journey 16% faster (35.8 s vs 42.6 s); it stepped in a median of 2 times per journey and kept the user at least 0.60 m from the drop edge every time.</p>
+<h2 style="margin-top:6px">Evidence (random crowds and events)</h2><p>Prediction horizon, same 20 random crowds: no prediction, 2 s and 4 s all had 0 contacts, because the safety layer holds the distance on its own. 4 s stopped 35% more often than 2 s and arrived 7% later, so we use 2 s; its job is to yield early instead of freezing.</p>
+<p>Journey 1 (new route), 40 random runs: all 40 arrived, 0 times the robot moved into anyone, never closer than 0.43 m to a person or 0.78 m to the drop. Journey 2 (remembered route), 40 runs: 39 arrived, 0 robot-caused contacts, never closer than 0.72 m to the drop. It handed the lead to the user in 34 of 40 runs, only once the drop was behind them, and had to take back control from a step toward the drop in 3.</p>
 </div>
 
 <div class="box"><h2>Critical failure mode and safety</h2>
