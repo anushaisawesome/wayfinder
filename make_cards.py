@@ -23,13 +23,14 @@ card("brand/card_quote.png", [
     ((110, 530), "Jennie  \u00b7  Guide Dogs Annual Report 2025", f(20), GREY),
 ])
 card("brand/card_intro.png", [
-    ((90, 130), "Over 2 million people in the UK live with sight loss.", f(40, True), FG),
-    ((90, 186), "Last year, 553 got a guide dog.", f(40, True), FG),
-    ((90, 262), "At stations, only 44% of blind passengers are reliably met", f(30), FG),
-    ((90, 304), "by the assistance they booked.", f(30), FG),
-    ((90, 420), "WAYFINDER", f(64, True), YEL),
-    ((90, 500), "A robot guide. You lead when you can. It leads when you need.", f(32), FG),
-    ((90, 640), "Sources: RNIB key statistics; Guide Dogs Annual Report 2025; RNIB rail report, Jan 2026", f(16), GREY),
+    ((90, 110), "Most people don\u2019t get Jennie\u2019s help in time.", f(42, True), FG),
+    ((90, 190), "Rehab:", f(28, True), YEL), ((270, 192), "85% of English councils miss the 28-day target for a rehabilitation assessment.", f(24), FG),
+    ((90, 236), "Guide dogs:", f(28, True), YEL), ((270, 238), "980 people are waiting; 553 were matched last year.", f(24), FG),
+    ((90, 282), "Stations:", f(28, True), YEL), ((270, 284), "only 44% of blind passengers are met by the assistance they booked.", f(24), FG),
+    ((90, 400), "WAYFINDER", f(64, True), YEL),
+    ((90, 480), "A robot guide that walks your routes with you.", f(32), FG),
+    ((90, 524), "You lead when you can. It leads when you need.", f(32, True), FG),
+    ((90, 640), "Sources: RNIB Life on Pause, Oct 2025; Guide Dogs Annual Report 2025; RNIB rail report, Jan 2026", f(16), GREY),
 ])
 card("brand/card_end.png", [
     ((90, 100), "80 random journeys: crowds, a drop, a sign put down mid-run", f(26), GREY),
