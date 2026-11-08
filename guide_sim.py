@@ -405,10 +405,12 @@ class Agent:
                 if len(tr["hist"]) >= 6:
                     t0, c0 = tr["hist"][0]
                     tr["vel"] = .6 * tr["vel"] + .4 * (c - c0) / max(t - t0, 1e-3)
-                    tr["person"] = tr.get("person", False) or np.hypot(*tr["vel"]) > .35
+                    # a sign's visible centre slides as we walk past it, but can't travel far:
+                    # only something that has really moved 0.7 m from where it appeared is a person
+                    tr["person"] = tr.get("person", False) or (np.hypot(*tr["vel"]) > .35 and np.hypot(*(c - tr["first"])) > .7)
         for j, (c, m) in enumerate(dets):
             if j not in used:
-                self.tracks.append(dict(id=self.next_id, pos=c, vel=np.zeros(2), hist=[(t, c)], seen=t, m=m))
+                self.tracks.append(dict(id=self.next_id, pos=c, first=c, vel=np.zeros(2), hist=[(t, c)], seen=t, m=m))
                 self.next_id += 1
         self.tracks = [tr for tr in self.tracks if t - tr["seen"] < .6]
         for tr in self.moving():
@@ -441,7 +443,7 @@ class Agent:
         return best
 
     def moving(self):
-        return [tr for tr in self.tracks if len(tr["hist"]) >= 6 and np.hypot(*tr["vel"]) > .35]
+        return [tr for tr in self.tracks if len(tr["hist"]) >= 6 and tr.get("person") and np.hypot(*tr["vel"]) > .35]
 
     def predict(self, rx, ry):
         """Where will each person be when the robot could get there? Only those places are avoided."""
@@ -927,13 +929,8 @@ def main():
         dx = max(r[0] - x, 0, x - r[1]); dy = max(r[2] - y, 0, y - r[3])
         return math.hypot(dx, dy)
     if agent.journey >= 2:
-        # on a route walked before, the change is already there: a sign that wasn't
-        # there last time, somewhere random on the way to the lifts
-        later = [q for q in user_route if 10.5 < q[0] < 15.0]
-        q = later[int(rng.integers(len(later)))]
-        data.mocap_pos[mid["sign"]] = [q[0], q[1] + rng.uniform(-.25, .25), 0]
-        data.mocap_quat[mid["sign"]] = yaw_quat(rng.uniform(0, math.pi))
-        sign_on = True
+        sign_at = HATCH[1] + rng.uniform(.3, 1.3)   # once past the hatch, while the user may be leading
+    sign_t = None
     was_stopped = False
     arrived_t = None
     live_n, live_proc = 0, None   # live window: speak through the speakers as it happens
@@ -942,15 +939,15 @@ def main():
         tick = time.time()
         # --- unscripted events (random each run)
         if not sign_on and rx > sign_at and agent.path:
-            pts = np.array(agent.path)
+            pts = np.array(user_route if agent.journey >= 2 else agent.path)
             k = int(np.argmin(np.hypot(pts[:, 0] - rx, pts[:, 1] - ry)))
             for q in pts[k:]:
-                if math.hypot(q[0] - rx, q[1] - ry) > 2.4:
+                if math.hypot(q[0] - rx, q[1] - ry) > 2.4 and not (HATCH[0] - .5 < q[0] < HATCH[1] + .5 and HATCH[2] - .5 < q[1] < HATCH[3] + .5):
                     sx, sy = q[0], q[1] + rng.uniform(-.25, .25)
                     break
             data.mocap_pos[mid["sign"]] = [sx, sy, 0]
             data.mocap_quat[mid["sign"]] = yaw_quat(rng.uniform(0, math.pi))
-            sign_on = True
+            sign_on, sign_t = True, t
         # --- robot + user pose
         data.mocap_pos[mid["robot"]] = [rx, ry, 0]
         data.mocap_quat[mid["robot"]] = yaw_quat(yaw)
@@ -1042,6 +1039,9 @@ def main():
         frame[324:524, X:] = draw_map(agent, rx, ry, yaw, ux, uy)
         frame[:, X:X + 1] = (70, 60, 55)
         recent = [e for e in agent.events if t - e[0] < 3.5]
+        banner = sign_t is not None and t - sign_t < 3.0
+        if banner:
+            shade(frame, 0, 64, 960, 100, .85, (20, 60, 120))
         cap_f = font(24, True)
         cap = wrap_text('"' + recent[-1][1] + '"', cap_f, 860) if recent else []
         if cap:
@@ -1066,6 +1066,8 @@ def main():
         d.text((942, 10), who, font=lf, fill=wcol, anchor="ra")
         d.text((942 - lf.getlength(who) - 10, 14), "LEADING:", font=font(15, True), fill=GREY, anchor="ra")
         d.text((942, 40), why, font=font(14), fill=GREY, anchor="ra")
+        if banner:
+            d.text((18, 72), "UNSCRIPTED CHANGE:  a sign is put down on the route  (random place and time each run)", font=font(17, True), fill=(255, 225, 140))
         for k, c in enumerate(cap):
             d.text((480, 700 - 16 - 34 * (len(cap) - 1 - k)), c, font=cap_f, fill=WHITE, anchor="ms")
         # camera

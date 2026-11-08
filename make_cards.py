@@ -14,22 +14,28 @@ def card(path, lines):
     im.save(path)
 
 
+card("brand/card_quote.png", [
+    ((110, 250), "\u201cWhen I got lost, I was too scared to go out.", f(46, True), FG),
+    ((110, 312), "I lost all my confidence.\u201d", f(46, True), FG),
+    ((110, 400), "Jennie  \u00b7  Guide Dogs Annual Report 2025", f(24), GREY),
+])
 card("brand/card_intro.png", [
-    ((90, 120), "Every day, 250 people in the UK start to lose their sight.", f(34, True), FG),
-    ((90, 185), "980 are waiting for a guide dog.", f(30), FG),
-    ((90, 232), "Only 44% of blind rail passengers are reliably met by station assistance.", f(30), FG),
-    ((90, 280), "“I know the assistance is going to fail. No one meets me.”  Paul Goddard", f(24), GREY),
-    ((90, 400), "WAYFINDER", f(64, True), YEL),
-    ((90, 480), "A robot guide. You lead when you can; it leads when you need,", f(32), FG),
-    ((90, 524), "reading your grip and the route, and saying why.", f(32), FG),
+    ((90, 130), "Over 2 million people in the UK live with sight loss.", f(40, True), FG),
+    ((90, 186), "Last year, 553 got a guide dog.", f(40, True), FG),
+    ((90, 262), "At stations, only 44% of blind passengers are reliably met", f(30), FG),
+    ((90, 304), "by the assistance they booked.", f(30), FG),
+    ((90, 420), "WAYFINDER", f(64, True), YEL),
+    ((90, 500), "A robot guide. You lead when you can. It leads when you need.", f(32), FG),
     ((90, 640), "Sources: RNIB key statistics; Guide Dogs Annual Report 2025; RNIB rail report, Jan 2026", f(16), GREY),
 ])
 card("brand/card_end.png", [
-    ((90, 110), "80 random journeys, new and remembered routes", f(34, True), FG),
-    ((90, 180), "79 arrived  ·  0 times the robot moved into anyone", f(30), FG),
-    ((90, 226), "never closer than 0.78 m to the drop", f(30), FG),
-    ((90, 272), "on a known route it handed the lead to the user in 27 of 40 runs, only once the drop was behind", f(24), GREY),
-    ((90, 370), "Runs on one CPU core: decision under 2 ms, no GPU, no network, speech on-device", f(28), FG),
-    ((90, 470), "WAYFINDER", f(48, True), YEL),
-    ((90, 535), "github.com/anushaisawesome/wayfinder", f(26), GREY),
+    ((90, 100), "80 random journeys: crowds, a drop, a sign put down mid-run", f(26), GREY),
+    ((90, 150), "80 arrived.  0 times it moved into anyone.", f(40, True), FG),
+    ((90, 206), "Never closer than 0.83 m to the drop.", f(40, True), FG),
+    ((90, 290), "On a remembered route it handed the lead to the user in 29 of 40 runs,", f(28), FG),
+    ((90, 330), "and took it back, saying why, when they needed it.", f(28), FG),
+    ((90, 410), "One CPU core. Decisions in under 2 ms. No GPU, no network, speech on-device.", f(26), GREY),
+    ((90, 500), "WAYFINDER", f(56, True), YEL),
+    ((90, 572), "You lead when you can. It leads when you need.", f(28), FG),
+    ((90, 640), "github.com/anushaisawesome/wayfinder", f(20), GREY),
 ])

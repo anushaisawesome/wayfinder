@@ -66,7 +66,7 @@ b { font-weight: 700 }
 </table>
 <p><b>Stated budget:</b> one CPU core, a 40 ms control cycle (25 Hz), no GPU, no network. Measured on a laptop CPU: typical decision step under 1 ms, worst-case re-plan about 13 ms (a third of the budget); the whole simulation including camera rendering runs about 5× faster than real time.</p>
 <h2 style="margin-top:6px">Evidence (random crowds and events)</h2><p>Prediction horizon, same 20 random crowds: no prediction, 2 s and 4 s all had 0 contacts, because the safety layer holds the distance on its own. 4 s stopped 35% more often than 2 s and arrived 7% later, so we use 2 s; its job is to yield early instead of freezing.</p>
-<p>Journey 1 (new route), 40 random runs: all 40 arrived, 0 times the robot moved into anyone, never closer than 0.43 m to a person or 0.78 m to the drop. Journey 2 (remembered route), 40 runs: 39 arrived, 0 robot-caused contacts, never closer than 0.91 m to the drop. It handed the lead to the user in 27 of 40 runs, only once the drop was behind them, and had to take back control from a step toward the drop in 3.</p>
+<p>Journey 1 (new route), 40 random runs: all 40 arrived, 0 times the robot moved into anyone, never closer than 0.44 m to a person or 0.83 m to the drop. Journey 2 (remembered route, a sign put down mid-run), 40 runs: all 40 arrived, 0 contacts, never closer than 0.97 m to the drop. It handed the lead to the user in 29 of 40 runs and had to take it back from a step toward the drop in 3.</p>
 </div>
 
 <div class="box"><h2>Critical failure mode and safety</h2>
