@@ -24,9 +24,9 @@ card("brand/card_quote.png", [
 ])
 card("brand/card_intro.png", [
     ((90, 110), "Most people don\u2019t get Jennie\u2019s help in time.", f(42, True), FG),
-    ((90, 190), "Rehab:", f(28, True), YEL), ((270, 192), "85% of English councils miss the 28-day target for a rehabilitation assessment.", f(24), FG),
-    ((90, 236), "Guide dogs:", f(28, True), YEL), ((270, 238), "980 people are waiting; 553 were matched last year.", f(24), FG),
-    ((90, 282), "Stations:", f(28, True), YEL), ((270, 284), "only 44% of blind passengers are met by the assistance they booked.", f(24), FG),
+    ((90, 190), "Rehab:", f(28, True), YEL), ((300, 192), "85% of English councils miss the 28-day target for a rehabilitation assessment.", f(24), FG),
+    ((90, 236), "Guide dogs:", f(28, True), YEL), ((300, 238), "980 people are waiting; 553 were matched last year.", f(24), FG),
+    ((90, 282), "Station staff:", f(28, True), YEL), ((300, 284), "even help booked in advance reliably turns up for only 44% of blind passengers.", f(24), FG),
     ((90, 400), "WAYFINDER", f(64, True), YEL),
     ((90, 480), "A robot guide that walks your routes with you.", f(32), FG),
     ((90, 524), "You lead when you can. It leads when you need.", f(32, True), FG),
