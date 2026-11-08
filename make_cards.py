@@ -15,9 +15,12 @@ def card(path, lines):
 
 
 card("brand/card_quote.png", [
-    ((110, 250), "\u201cWhen I got lost, I was too scared to go out.", f(46, True), FG),
-    ((110, 312), "I lost all my confidence.\u201d", f(46, True), FG),
-    ((110, 400), "Jennie  \u00b7  Guide Dogs Annual Report 2025", f(24), GREY),
+    ((110, 170), "After strokes left her with sight loss, Jennie got lost on a short walk near her home.", f(26), GREY),
+    ((110, 240), "\u201cWhen I got lost, I was too scared to go out.", f(46, True), FG),
+    ((110, 302), "I lost all my confidence.\u201d", f(46, True), FG),
+    ((110, 400), "What got her out again was a rehabilitation specialist walking her routes", f(28), FG),
+    ((110, 440), "with her, until she could go out alone.", f(28), FG),
+    ((110, 530), "Jennie  \u00b7  Guide Dogs Annual Report 2025", f(20), GREY),
 ])
 card("brand/card_intro.png", [
     ((90, 130), "Over 2 million people in the UK live with sight loss.", f(40, True), FG),
