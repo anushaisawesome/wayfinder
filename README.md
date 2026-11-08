@@ -27,9 +27,9 @@ One CPU core, 40 ms control cycle (25 Hz), no GPU, no network. Typical decision 
 | Run set | Arrived | Robot-caused contacts | Closest to the drop |
 |---|---|---|---|
 | Journey 1, 40 runs | 40/40 | 0 | 0.78 m |
-| Journey 2 (remembered route, user leads once the drop is behind), 40 runs | 39/40 | 0 | 0.72 m |
+| Journey 2 (remembered route, user leads once the drop is behind), 40 runs | 39/40 | 0 | 0.91 m |
 
-On journey 2 it handed the lead to the user in 34/40 runs and took it back from a step toward the drop in 3.
+On journey 2 it handed the lead to the user in 27/40 runs and took it back from a step toward the drop in 3. A sign that wasn't there on journey 1 is placed at random on the route; it reported it in 19/40 runs (in the rest it was off the camera's view or behind a crowd).
 
 Prediction horizon, same 20 crowds: none, 2 s and 4 s all had 0 contacts (the safety layer holds the distance by itself); 4 s stopped 35% more often than 2 s and arrived 7% later, so we use 2 s, to yield early rather than freeze. Raw results in `results/`.
 
@@ -42,7 +42,7 @@ venv/bin/python guide_sim.py --show               # live window
 venv/bin/python guide_sim.py --headless --seed 4  # safety metrics only
 ./eval.sh                                         # the 80-run evaluation
 ```
-Demo video: `runs/Wayfinder demo - journey 2.mp4`. One-page summary: `onepager/Wayfinder - technical summary.pdf`.
+Demo video: `runs/Wayfinder demo.mp4`. One-page summary: `onepager/Wayfinder - technical summary.pdf`.
 
 ## Limits
 Simulation only (perfect sensors, no wheel slip); handle tension is modelled, not yet measured from real hands; constant-velocity prediction; indoors only; not yet tested with blind users.

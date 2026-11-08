@@ -281,7 +281,7 @@ class Agent:
             if tr.get("person"):
                 cx, cy = cell(*tr["pos"])
                 people[max(0, cx - 3):cx + 4, max(0, cy - 3):cy + 4] = True
-        steady = getattr(self, "obst_age", np.zeros((GW, GH))) > 40      # stayed put for 1.6 s
+        steady = getattr(self, "obst_age", np.zeros((GW, GH))) > 75      # stayed put for 3 s: people waiting to walk pause up to 2.5 s
         new = steady & ~known & ~people & ~self.reported_new
         if new.sum() >= 3 and getattr(self, "_new_reports", 0) < 2:
             self._new_reports = getattr(self, "_new_reports", 0) + 1
@@ -649,6 +649,7 @@ class Agent:
             elif self.mode == "SHADOW" and tension > .6:
                 self.mode, self.mode_since = "LEAD", t
                 self.say(t, "I'll take over for a bit.", 1)
+                self.lead_why = "you seem tense"
         if self.mode == "SHADOW" and self.state in ("GUIDING", "YIELDING") and user_heading is not None:
             hz = self.hazard_on_heading(rx, ry, user_heading)
             if hz is None:
@@ -667,6 +668,7 @@ class Agent:
                 self.say(t, msg, 3)
                 self.mode, self.mode_since, self.calm_since = "LEAD", t, None
                 self.state, self.reason = "STEPPING IN", f"{hz} on your line: taking over"
+                self.lead_why = {"drop": "a drop on your line", "obstacle": "something on your line", "person": "someone crossing your line"}[hz]
 
         # --- adapt to the person, not just the room
         self.tension = tension
@@ -924,6 +926,14 @@ def main():
     def rect_dist(x, y, r):
         dx = max(r[0] - x, 0, x - r[1]); dy = max(r[2] - y, 0, y - r[3])
         return math.hypot(dx, dy)
+    if agent.journey >= 2:
+        # on a route walked before, the change is already there: a sign that wasn't
+        # there last time, somewhere random on the way to the lifts
+        later = [q for q in user_route if 10.5 < q[0] < 15.0]
+        q = later[int(rng.integers(len(later)))]
+        data.mocap_pos[mid["sign"]] = [q[0], q[1] + rng.uniform(-.25, .25), 0]
+        data.mocap_quat[mid["sign"]] = yaw_quat(rng.uniform(0, math.pi))
+        sign_on = True
     was_stopped = False
     arrived_t = None
     live_n, live_proc = 0, None   # live window: speak through the speakers as it happens
@@ -1044,9 +1054,18 @@ def main():
         WHITE, GREY, DIM = (240, 240, 236), (175, 178, 186), (120, 124, 134)
         # main view
         d.text((18, 12), "WAYFINDER", font=font(24, True), fill=(255, 198, 26))
-        d.text((18, 40), f"Station concourse to the lifts   ·   journey {agent.journey} on this route   ·   MuJoCo simulation", font=font(14), fill=GREY)
-        d.text((942, 16), f"seed {seed}   t = {t:4.1f} s", font=font(14), fill=GREY, anchor="ra")
-        d.text((942, 38), "random crowd each run  ·  all on-device", font=font(13), fill=DIM, anchor="ra")
+        d.text((18, 40), f"Station concourse to the lifts  ·  journey {agent.journey} on this route  ·  seed {seed}  t {t:4.1f} s", font=font(14), fill=GREY)
+        if agent.mode == "SHADOW":
+            who, why, wcol = "YOU", "you're calm and know this route", (255, 198, 26)
+        else:
+            who, wcol = "WAYFINDER", WHITE
+            why = getattr(agent, "lead_why", None) if t - agent.mode_since < 6 else None
+            why = why or ("new route: it learns the way" if agent.journey < 2 else
+                          "known drop ahead" if agent.drop_near_route(rx, ry) else "until you're settled")
+        lf = font(22, True)
+        d.text((942, 10), who, font=lf, fill=wcol, anchor="ra")
+        d.text((942 - lf.getlength(who) - 10, 14), "LEADING:", font=font(15, True), fill=GREY, anchor="ra")
+        d.text((942, 40), why, font=font(14), fill=GREY, anchor="ra")
         for k, c in enumerate(cap):
             d.text((480, 700 - 16 - 34 * (len(cap) - 1 - k)), c, font=cap_f, fill=WHITE, anchor="ms")
         # camera
@@ -1113,7 +1132,8 @@ def main():
                               min_person=round(m["min_person"], 2), min_drop=round(m["min_drop"], 2),
                               contacts=m["contacts"], robot_fault=m.get("robot_fault", 0), stops=m["stops"],
                               journey=agent.journey, interventions=agent.interventions,
-                              said=[(round(a, 1), b) for a, b in agent.events])))
+                              said=[(round(a, 1), b) for a, b in agent.events],
+                              sign=[round(float(v), 2) for v in data.mocap_pos[mid["sign"]][:2]])))
         return
     vw.release()
     if args.show:
