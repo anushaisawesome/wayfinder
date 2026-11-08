@@ -105,7 +105,7 @@ Random crowds and events, 40 runs per journey. Raw results are in `results/`.
 | Journey 1, new route | 40/40 | 0 | 0.83 m | 0.44 m |
 | Journey 2, remembered route | 40/40 | 0 | 0.97 m | 0.56 m |
 
-On journey 2 it handed the lead to the user in 29 of 40 runs, only once the drop was behind them, and took control back from a step toward the drop in 3. It reported the new sign in 18 of 40 runs; in the rest the sign was outside the camera's view or behind a crowd.
+On journey 2 it handed the lead to the user in 29 of 40 runs (it holds the lead while a known drop is on the next 6 m of the route), and took control back from a step toward the drop in 3. It reported the new sign in 18 of 40 runs; in the rest the sign was outside the camera's view or behind a crowd.
 
 **Prediction horizon**, same 20 random crowds: no prediction, 2 s and 4 s all had 0 contacts, because the safety layer holds the distance on its own. 4 s stopped 35% more often than 2 s and arrived 7% later, so Wayfinder uses 2 s. The job of prediction is to yield early instead of freezing. (CaBot, tested with users, used 4 s [8].)
 
