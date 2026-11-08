@@ -24,13 +24,13 @@ card("brand/card_quote.png", [
 ])
 card("brand/card_intro.png", [
     ((90, 110), "Most people don\u2019t get Jennie\u2019s help in time.", f(42, True), FG),
-    ((90, 190), "Rehab:", f(28, True), YEL), ((300, 192), "85% of English councils miss the 28-day target for a rehabilitation assessment.", f(24), FG),
+    ((90, 190), "Rehab:", f(28, True), YEL), ((300, 192), "85% of councils miss RNIB\u2019s 28-day standard for an assessment; some wait over a year.", f(24), FG),
     ((90, 236), "Guide dogs:", f(28, True), YEL), ((300, 238), "980 people are waiting; 553 were matched last year.", f(24), FG),
-    ((90, 282), "Station staff:", f(28, True), YEL), ((300, 284), "even help booked in advance reliably turns up for only 44% of blind passengers.", f(24), FG),
+    ((90, 282), "Station staff:", f(28, True), YEL), ((300, 284), "60% of blind passengers aren\u2019t consistently met, even when they booked help ahead.", f(24), FG),
     ((90, 400), "WAYFINDER", f(64, True), YEL),
     ((90, 480), "A robot guide that walks your routes with you.", f(32), FG),
     ((90, 524), "You lead when you can. It leads when you need.", f(32, True), FG),
-    ((90, 640), "Sources: RNIB Life on Pause, Oct 2025; Guide Dogs Annual Report 2025; RNIB rail report, Jan 2026", f(16), GREY),
+    ((90, 640), "Sources: RNIB Life on Pause, Oct 2025; Guide Dogs Annual Report 2025; RNIB Platform for Change, Jan 2026", f(16), GREY),
 ])
 card("brand/card_end.png", [
     ((90, 100), "80 random journeys: crowds, a drop, a sign put down mid-run", f(26), GREY),

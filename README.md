@@ -24,9 +24,9 @@ A robot guide for people who are losing their sight. The user leads whenever the
 
 Who it is for: people who have recently lost their sight, mostly older adults with glaucoma or macular degeneration, in the gap between diagnosis and help. Nearly 80% of the UK's 2M+ people with sight loss are 65 or older [1].
 
-- After certification, 85% of English councils miss the 28-day target for a rehab assessment [2].
-- 980 people are waiting for a guide dog, many for over two years, and dogs mostly go to a younger minority [3].
-- At stations, only 44% of blind passengers are reliably met by booked assistance [4].
+- 85% of councils did not complete vision rehabilitation assessments within RNIB's recommended 28 days; some people wait over a year [2].
+- 980 people are waiting for a guide dog; 553 new partnerships were made in 2025, over 40% of them with people who had waited more than two years [3].
+- At stations, 60% of blind and partially sighted passengers are not consistently met by staff, even when they booked assistance in advance [4].
 - Blind people memorise their regular routes. RNIB says changes to them must be communicated accessibly, and 56% name temporary obstacles as a barrier [6].
 
 > "When I got lost, I was too scared to go out. I lost all my confidence." Jennie [3]
@@ -135,7 +135,7 @@ Runs are saved to `runs/`. `--seed N` repeats an exact run.
 1. RNIB, key statistics.
 2. RNIB, *Life on Pause*, FOI report, October 2025.
 3. Guide Dogs, Annual Report 2025.
-4. RNIB rail report, via Optometry Today, 22 January 2026.
+4. RNIB, Platform for Change (rail report), via Optometry Today, 22 January 2026.
 5. RAIB, Eden Park report, 2021.
 6. RNIB, *In My Way*, 2025.
 7. Schöller et al., *What the Constant Velocity Model Can Teach Us About Pedestrian Motion Prediction*, RA-L 2020.
