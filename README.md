@@ -37,10 +37,10 @@ The pain is lost confidence, which keeps people indoors. A glaucoma specialist t
 
 ## What's new
 
-Robot guides that avoid obstacles and predict crowds already exist: CaBot (CMU/IBM, 2020) and Glidance Glide. Grip force on a handle has been sensed, and stress in blind walkers has been measured, but separately. What these guides do not do is decide who leads from the user's own state.
+Robot guides that avoid obstacles and predict crowds already exist: CaBot (CMU/IBM, 2020) and Glidance Glide. Some already share control: Ye et al.'s Co-Robotic Cane switches between leading and following from how the user moves with it, and Cai et al. (HRI 2026) switch to following when the user reaches for a door or button. None that we found decides who leads from how the user is coping and how well they know the route.
 
-- **Control moves both ways.** Wayfinder shifts control between user and robot from the user's state on the handle (grip and how they follow) together with how familiar the route is. Calm on a known route, with any known drop behind them: the user steers and Wayfinder only watches out. Tense, busy or near danger: it takes over and says why.
-- **Glide's user-led mode is switched by hand.** Glide has a user-led mode and taught routes, but the user changes mode themselves and its help does not adapt to them.
+- **Control moves both ways, from the user's state and the route.** Wayfinder shifts control between user and robot from tension in the user's grip together with how familiar the route is. Calm on a known route, with any known drop behind them: the user steers and Wayfinder only watches out. Tense, busy or near danger: it takes over and says why.
+- **Existing user-led modes are chosen by the user.** Glide and CaBot (Kamikubo et al., CHI 2025) have user-led modes, but the user picks the mode.
 - **No graduating.** Sight loss is permanent and confidence changes day to day, so control adapts in both directions rather than weaning anyone off help. Users in guide studies wanted control, not to be dragged.
 
 This is "as far as we could find" from a search of products and research up to November 2026, not a systematic review.
