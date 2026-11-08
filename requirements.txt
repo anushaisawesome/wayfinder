@@ -1,0 +1,4 @@
+mujoco>=3.0
+numpy
+opencv-python
+python-osc

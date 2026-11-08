@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+runs/*
+!runs/Wayfinder demo - journey 2.mp4
+candidates/
+routes/eval*.npz
+*.v1.py
+*.v2.py
+*.v3.py
+onepager/onepager.html
+brand/logo.html
+MUJOCO_LOG.TXT
+.DS_Store
